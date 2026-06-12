@@ -1,0 +1,30 @@
+module delay(input a,clk, output a_delay);
+parameter N=100;
+reg [N-1:0]a_reg=0;
+always @(posedge clk) begin 
+a_reg<={a,a_reg[N-1:1]};
+end
+assign a_delay = a_reg[0];
+endmodule
+
+
+module dalay_tb();
+reg a,clk;
+wire a_delay;
+
+
+delay a1(.a(a),.clk(clk),.a_delay(a_delay));
+
+always begin
+clk=~clk;
+#10;
+end
+
+initial begin
+$monitor("a=%b a_delay=%b", a, a_delay);
+clk=0;
+a=0;#100;
+a=1;#10;
+
+end 
+endmodule

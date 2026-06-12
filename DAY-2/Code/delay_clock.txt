@@ -1,0 +1,33 @@
+module delay3(input clk,a, output a_delay);
+reg [3:0]a_reg;
+always @(posedge clk) begin
+a_reg[0]<=a;
+
+a_reg[1]<=a_reg[0];
+a_reg[2]<=a_reg[1];
+a_reg[3]<=a_reg[2];
+
+end
+assign a_delay=a_reg[3];
+endmodule
+
+module delay3_tb();
+reg clk=0,a;
+wire a_delay;
+
+delay3 a5(.a(a),.clk(clk),.a_delay(a_delay));
+
+always begin
+clk=~clk;
+#5;
+end
+
+initial begin
+#10;
+a=0;
+#95;
+@(posedge clk) begin 
+a=1;
+end
+end
+endmodule
