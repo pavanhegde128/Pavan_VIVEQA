@@ -1,0 +1,42 @@
+4. Write RTL and Testbench for a 4-bit synchronous and loadable binary up counter. 
+
+
+RTL solution :
+
+
+module asg1_upcounter(input clk,input load,input [3:0] d,output reg [3:0] q);
+
+always @(posedge clk) begin
+    if(load)
+        q <= d;
+    else
+        q <= q + 1;
+end
+
+endmodule
+
+module asg1_upcounter_tb();
+
+reg clk,load;
+reg [3:0] d;
+wire [3:0] q;
+
+asg1_upcounter a1(clk,load,d,q);
+
+always #5 clk=~clk;
+
+initial begin
+$display("load\td\tq");
+$monitor("%b\t%b\t%b",load,d,q);
+
+clk=0;
+
+load=1; d=4'b0101; #10;
+load=0; #50;
+
+load=1; d=4'b1010; #10;
+load=0; #50;
+
+$finish;
+end
+endmodule

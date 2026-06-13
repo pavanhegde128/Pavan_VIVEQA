@@ -1,0 +1,27 @@
+2. Write RTL for 2x4 decoder using Dataflow abstraction and verify the same using a Testbench. 
+
+RTL solution :
+
+module asg1_2x4decoder(input a,b,output [3:0]y);
+assign y[0]=(~a&~b);
+assign y[1]=(~a&b);
+assign y[2]=(a&~b);
+assign y[3]=(a&b);
+endmodule 
+
+module asg1_2x4decoder_tb();
+reg a,b;
+wire [3:0]y;
+
+asg1_2x4decoder a1(a,b,y);
+
+integer i;
+initial begin 
+$display("A\tB\tY");
+$monitor("%d\t%d\t%b",a,b,y);
+for(i=0;i<4;i=i+1) begin
+{a,b}=i;
+#10;
+end
+end
+endmodule

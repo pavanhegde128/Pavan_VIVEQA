@@ -1,0 +1,60 @@
+3. Write RTL and Testbench for for a T Flip Flop using D Flip Flop. 
+
+
+
+RTL solution :
+
+
+
+module asg1_d_flipflop(input d,clk,rst,output reg q);
+
+always @(posedge clk or posedge rst)
+begin
+    if(rst)
+        q<=0;
+    else
+        q<=d;
+end
+
+endmodule
+
+module asg1_t_flipflop(input t,clk,rst,output q);
+
+wire d;
+wire qn;
+
+assign d=t^qn;
+
+asg1_d_flipflop dff(d,clk,rst,qn);
+
+assign q=qn;
+
+endmodule
+
+module asg1_t_flipflop_tb();
+
+reg t,clk,rst;
+wire q;
+
+asg1_t_flipflop a1(t,clk,rst,q);
+
+always #5 clk=~clk;
+
+initial begin
+$display("rst\tt\tclk\tq");
+$monitor("%b\t%b\t%b\t%b",rst,t,clk,q);
+
+clk=0;
+rst=1;
+t=0;
+
+#10 rst=0;
+
+t=0; #20;
+t=1; #40;
+t=0; #20;
+t=1; #40;
+
+$finish;
+end
+endmodule

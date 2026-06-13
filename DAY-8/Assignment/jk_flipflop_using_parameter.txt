@@ -1,0 +1,61 @@
+2. Write RTL and Testbench for JK Flip Flop, using parameter declaration for the respective scenarios (HOLD, TOGGLE, SET, RESET).
+
+
+
+RTL solution :
+
+
+
+module asg1_jk_flipflop(input j,k,clk,rst,output reg q,output qa);
+
+parameter hold=2'b00,
+          reset=2'b01,
+          set=2'b10,
+          toggle=2'b11;
+
+assign qa=~q;
+
+always @(posedge clk or posedge rst) begin
+    if(rst)
+        q<=0;
+    else begin
+        case({j,k})
+            hold: q<=q;
+            reset: q<=0;
+            set: q<=1;
+            toggle: q<=~q;
+        endcase
+    end
+end
+
+endmodule
+
+module asg1_jk_flipflop_tb();
+
+reg j,k,clk,rst;
+wire q,qa;
+
+asg1_jk_flipflop a1(j,k,clk,rst,q,qa);
+
+always #5 clk=~clk;
+
+initial begin
+$display("J\tK\tQ\tQA");
+$monitor("%b\t%b\t%b\t%b",j,k,q,qa);
+
+clk=0;
+rst=1;
+j=0;
+k=0;
+
+#10 rst=0;
+
+j=0; k=0; #10;
+j=0; k=1; #10;
+j=1; k=0; #10;
+j=1; k=1; #20;
+j=0; k=0; #10;
+
+$finish;
+end
+endmodule

@@ -1,0 +1,27 @@
+1. Write RTL for 1bit Full adder using Dataflow abstraction and verify the same using a Testbench. 
+
+
+RTL solution :
+
+
+module asg1_fulladder(input a,b,cin,output sum,carry);
+assign sum=a^b^cin;
+assign carry=(a&b)|(b&cin)|(cin&a);
+endmodule 
+
+module asg1_fulladder_tb();
+reg a,b,cin;
+wire sum,carry;
+
+asg1_fulladder a1(a,b,cin,sum,carry);
+
+integer i;
+initial begin 
+$display("A\tB\tCIN\tSUM\tCARRY\t");
+$monitor("%d\t%d\t%d\t%d\t%d\t",a,b,cin,sum,carry);
+for(i=0;i<8;i=i+1) begin
+{a,b,cin}=i;
+#10;
+end
+end
+endmodule

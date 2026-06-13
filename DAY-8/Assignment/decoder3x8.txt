@@ -1,0 +1,40 @@
+6. Write RTL description and test bench for 3:8 Decoder.
+
+
+RTL solution :
+
+module asg1_3x8decoder(input a,b,c,output [7:0] y);
+
+assign y[0] = ~a&~b&~c;
+assign y[1] = ~a&~b&c;
+assign y[2] = ~a&b&~c;
+assign y[3] = ~a&b&c;
+assign y[4] =  a&~b&~c;
+assign y[5] =  a&~b&c;
+assign y[6] =  a&b&~c;
+assign y[7] =  a&b&c;
+
+endmodule
+
+module asg1_3x8decoder_tb();
+
+reg a,b,c;
+wire [7:0] y;
+
+asg1_3x8decoder a1(a,b,c,y);
+
+integer i;
+
+initial begin
+$display("A\tB\tC\tY");
+$monitor("%b\t%b\t%b\t%b",a,b,c,y);
+
+for(i=0;i<8;i=i+1) begin
+    {a,b,c}=i;
+    #10;
+end
+
+$finish;
+end
+
+endmodule

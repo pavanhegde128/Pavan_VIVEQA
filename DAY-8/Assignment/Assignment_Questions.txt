@@ -1,0 +1,18 @@
+Combinational verilog Codes:
+
+1. Write RTL for 1bit Full adder using Dataflow abstraction and verify the same using a Testbench. 
+2. Write RTL for 2x4 decoder using Dataflow abstraction and verify the same using a Testbench. 
+3. Write RTL for 8x3 priority encoder using structural model and verify the same using a Testbench. 
+4. Write RTL for the 4 bits Ripple carry Adder using 1-bit Full adder and verify the same using a Testbench. 
+5. Write RTL for 4:1 Mux using 2:1 Muxes and verify the same using a Testbench.
+6. Write RTL description and test bench for 3:8 Decoder.
+7. Write RTL description and testbench for 8:3 Priority encoder. 
+
+Sequential Circuits:
+
+1. Write RTL and Testbench for SR latch using Gate level modelling. 
+2. Write RTL and Testbench for JK Flip Flop, using parameter declaration for the respective scenarios (HOLD, TOGGLE, SET, RESET).
+3. Write RTL and Testbench for for a T Flip Flop using D Flip Flop. 
+4. Write RTL and Testbench for a 4-bit synchronous and loadable binary up counter. 
+5. Write RTL and Testbench to design a 4-bit MOD-12 loadable binary synchronous up counter. 
+6. Write RTL and Testbench to design a 4-bit loadable binary synchronous up-down counter 

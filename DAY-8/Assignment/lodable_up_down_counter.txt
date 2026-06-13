@@ -1,0 +1,52 @@
+6. Write RTL and Testbench to design a 4-bit loadable binary synchronous up-down counter 
+
+
+
+RTL solution :
+
+
+module asg1_updown_counter(input clk,input rst,input ld,input ud,input [3:0] d,output reg [3:0] q);
+
+always @(posedge clk) begin
+    if(rst)
+        q <= 0;
+    else if(ld)
+        q <= d;
+    else if(ud)
+        q <= q + 1;
+    else
+        q <= q - 1;
+end
+
+endmodule
+
+module asg1_updown_counter_tb();
+
+reg clk,rst,ld,ud;
+reg [3:0] d;
+wire [3:0] q;
+
+asg1_updown_counter a1(clk,rst,ld,ud,d,q);
+
+always #5 clk = ~clk;
+
+initial begin
+$display("rst\tld\tud\td\tq");
+$monitor("%b\t%b\t%b\t%b\t%b",rst,ld,ud,d,q);
+
+clk=0;
+
+rst=1; ld=0; ud=0; d=0; #10;
+rst=0;
+
+ld=1; ud=1; d=4'b0101; #10;
+ld=0; ud=1; #40;
+
+ud=0; #40;
+
+rst=1; #10;
+rst=0;
+
+$finish;
+end
+endmodule

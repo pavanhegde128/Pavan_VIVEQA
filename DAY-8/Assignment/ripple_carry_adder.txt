@@ -1,0 +1,38 @@
+4. Write RTL for the 4 bits Ripple carry Adder using 1-bit Full adder and verify the same using a Testbench. 
+
+
+RTL solution :
+
+module asg1_ripple_carryadder(input [3:0] a,b,input cin,output [3:0] sum,output cout);
+
+wire c1,c2,c3;
+
+asg1_fulladder f0(a[0], b[0], cin, sum[0], c1);
+asg1_fulladder f1(a[1], b[1], c1,  sum[1], c2);
+asg1_fulladder f2(a[2], b[2], c2,  sum[2], c3);
+asg1_fulladder f3(a[3], b[3], c3,  sum[3], cout);
+
+endmodule
+
+module  asg1_ripple_carryadder_tb();
+
+reg [3:0] a,b;
+reg cin;
+wire [3:0] sum;
+wire cout;
+
+asg1_ripple_carryadder a1(a,b,cin,sum,cout);
+
+initial begin
+$display("A\tB\tCIN\tSUM\tCOUT");
+$monitor("%b\t%b\t%b\t%b\t%b",a,b,cin,sum,cout);
+
+a=4'b0000; b=4'b0000; cin=0; #10;
+a=4'b0011; b=4'b0101; cin=0; #10;
+a=4'b1111; b=4'b0001; cin=0; #10;
+a=4'b1010; b=4'b0101; cin=1; #10;
+a=4'b1111; b=4'b1111; cin=1; #10;
+$finish;
+end
+
+endmodule

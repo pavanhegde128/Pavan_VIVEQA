@@ -1,0 +1,45 @@
+5. Write RTL and Testbench to design a 4-bit MOD-12 loadable binary synchronous up counter. 
+
+
+
+RTL solution :
+
+
+module asg1_mod12_counter(input clk,input load,input [3:0] d,output reg [3:0] q);
+
+always @(posedge clk) begin
+    if(load)
+        q <= d;
+    else if(q == 4'd11)
+        q <= 0;
+    else
+        q <= q + 1;
+end
+
+endmodule
+
+module asg1_mod12_counter_tb();
+
+reg clk,load;
+reg [3:0] d;
+wire [3:0] q;
+
+asg1_mod12_counter a1(clk,load,d,q);
+
+always #5 clk = ~clk;
+
+initial begin
+$display("load\td\tq");
+$monitor("%b\t%b\t%b",load,d,q);
+
+clk=0;
+
+load=1; d=4'd8; #10;
+load=0; #100;
+
+load=1; d=4'd3; #10;
+load=0; #50;
+
+$finish;
+end
+endmodule

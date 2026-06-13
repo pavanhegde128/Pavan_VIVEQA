@@ -1,0 +1,36 @@
+1. Write RTL and Testbench for SR latch using Gate level modelling. 
+
+
+
+RTL solution : 
+
+
+
+module asg1_sr_latch(input s,r,output q,qa);
+
+nor (q,r,qa);
+nor (qa,s,q);
+
+endmodule
+
+module asg1_sr_latch_tb();
+
+reg s,r;
+wire q,qa;
+
+asg1_sr_latch a1(s,r,q,qa);
+
+initial begin
+$display("S\tR\tQ\tQA");
+$monitor("%b\t%b\t%b\t%b",s,r,q,qa);
+
+s=0; r=1; #10; 
+s=0; r=0; #10; 
+s=1; r=0; #10; 
+s=0; r=0; #10; 
+s=1; r=1; #10; 
+
+$finish;
+end
+
+endmodule
