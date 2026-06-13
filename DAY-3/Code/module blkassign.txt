@@ -1,0 +1,12 @@
+module blkassign();
+reg a,b,c,d;
+initial begin
+a=1;
+b=0;
+c=1;
+d=0;
+c=#5b;
+d<=#10a;
+b=d;
+end
+endmodule

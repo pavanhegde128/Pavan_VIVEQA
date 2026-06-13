@@ -1,0 +1,75 @@
+module flip_flop(input j,k,clk,rst,output reg q,qa);
+always @(posedge clk) begin
+if (rst==1) begin
+q<=0;
+qa<=1;
+end
+else 
+begin
+ case({j,k})
+ 2'b00:begin q<=q;qa<=qa;end
+ 2'b01:begin q<=0;qa<=1; end
+ 2'b10:begin q<=1;qa<=0; end
+ 2'b11:begin q<=qa;qa<=q; end
+ endcase
+ end
+ end
+ endmodule
+ 
+ 
+ module flip_flop_tb();
+ reg clk,j,k,rst;
+ wire q,qa;
+ integer i;
+ 
+ flip_flop f1(.j(j),.k(k),.clk(clk),.rst(rst),.q(q),.qa(qa));
+ 
+ always #5 clk=~clk;
+ 
+ initial begin 
+ clk=0;
+ j=0;
+ k=0;
+ 
+ #100 rst=1;
+ rst=0;
+ 
+ for (i=0;i<4;i=i+1) begin
+ {j,k}=i;
+ #50;
+ $display("%d\t%d\t%d\t%d\t",j,k,q,qa);
+ end
+ $finish;
+ end
+ endmodule
+ 
+
+
+module d_flip_flop(input clk,d,rst,output q ,qa);
+wire da;
+assign da=~d;
+flip_flop f2(.clk(clk),.rst(rst),.q(q),.qa(qa),.j(d),.k(da));
+endmodule
+
+module d_flip_flop_tb();
+reg clk,d,rst;
+wire q ,qa;
+
+
+d_flip_flop d2(.clk(clk),.rst(rst),.q(q),.qa(qa),.d(d));
+
+always #5 clk=~clk;
+
+initial begin 
+$monitor("%d\t%d\t%d",d,q,qa);
+clk=0;
+d=0;
+#50;rst=1;
+@(posedge clk);
+rst=0;
+@(posedge clk);
+#30;d=0;
+@(posedge clk);
+#30;d=1;
+end
+endmodule

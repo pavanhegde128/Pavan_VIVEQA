@@ -1,0 +1,11 @@
+module clock_nonblocking();
+reg i;
+initial 
+i<=1;
+
+
+initial begin
+i<=1'b0;
+i<=1'b1;
+end
+endmodule
