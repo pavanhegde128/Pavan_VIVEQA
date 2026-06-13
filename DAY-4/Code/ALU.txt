@@ -1,0 +1,47 @@
+module ALU( input signed [3:0]a,b,input [3:0]control,output reg [3:0]result,output zero,negative);
+
+always @(*)begin
+case(control)
+4'd0:result=a+b;
+4'd1:result=a-b;
+4'd2:result=a&b;
+4'd3:result=a|b;
+4'd4:result=a^b;
+4'd5:result=a>>2;
+4'd6:result=a<<2;
+4'd7:result=a*b;
+4'd8:result=a+1;
+4'd9:result=a-1;
+4'd10:result=~a;
+4'd11:result=~b;
+default:result=4'd0;
+endcase
+end
+assign zero=!(|result);
+assign negative=result[3];
+endmodule
+
+
+
+module ALU_tb();
+reg signed [3:0]a,b;
+reg [3:0]control;
+wire [3:0]result;
+wire zero,negative;
+
+ALU a6(.a(a),.b(b),.result(result),.control(control),.zero(zero),.negative(negative));
+
+integer i;
+initial begin
+a=0;b=0;control=0;
+
+a=5;b=6;
+
+ for (i=0;i<14;i=i+1) begin
+control=i;
+#50;
+$display("%d\t%d\t%d\t%d\t",a,b,control,result);
+end
+$finish;
+end
+endmodule

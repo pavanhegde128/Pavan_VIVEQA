@@ -1,0 +1,40 @@
+module cdc_pulse(input a,clka,clkb, output signal_a,signal_b,signal_c);
+
+reg [1:0]a_reg=0;
+
+
+always @(posedge clkb) begin
+ a_reg[0]<=a;
+a_reg[1]<=a_reg[0];
+end
+assign signal_a=(a_reg[0]&(~a_reg[1]));
+assign signal_b=(~a_reg[0]&(a_reg[1]));
+assign signal_c=(a_reg[0]&(~a_reg[1])|((~a_reg[0]&(a_reg[1]))));
+endmodule
+
+
+module cdc_pulse_tb();
+reg a,clka=0,clkb=0;
+wire signal_a,signal_b,signal_c;
+
+cdc_pulse c1(.a(a),.clka(clka),.clkb(clkb),.signal_a(signal_a),.signal_b(signal_b),.signal_c(signal_c));
+
+always begin
+clka=~clka;
+#50;
+end
+
+always begin
+clkb=~clkb;
+#10;
+end
+
+initial begin
+a=0;
+#100;
+a=1;
+#100;
+a=0;
+#1000;
+end 
+endmodule
