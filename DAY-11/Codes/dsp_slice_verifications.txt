@@ -1,0 +1,20 @@
+dsp slice verifications
+
+
+module mul(a,b,y);
+input [17:0]a,b;
+output [35:0]y;
+assign y=a*b;
+endmodule
+
+module mul_large_number(a,b,y);
+input [31:0]a,b;
+output [63:0]y;
+assign y=a*b;
+endmodule
+
+module mac_operation_eg(a,b,y);
+input [17:0]a,b;
+output [47:0]y;
+assign y=y+a*b;
+endmodule
