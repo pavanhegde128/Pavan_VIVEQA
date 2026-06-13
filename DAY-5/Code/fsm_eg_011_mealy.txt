@@ -1,0 +1,59 @@
+module fsm_eg_011_mealy(input clk,rst,i,output y);
+wire d0,d1,q0,q1,q0b,q1b;
+assign d0=~i;
+assign d1=q0&i;
+assign y=q1&q0b&i;
+
+d_flip_flop1 a3(clk,rst,d0,q0,q0b);
+d_flip_flop1 a4(clk,rst,d1,q1,q1b);
+endmodule 
+
+module fsm_eg_011_mealy_tb();
+reg clk=0,rst,i;
+wire y;
+
+fsm_eg_011_mealy a1(clk,rst,i,y);
+
+always #5 clk=~clk;
+
+always @(posedge clk) begin
+$display("%d\t%d",i,y);
+end
+
+initial begin
+$display("I\tY");
+
+i=0;
+rst=1;#20;
+
+i=1;#10;
+i=0;#10;
+i=1;#10;
+i=1;#10;
+
+rst=0;#20;
+
+i=1;#10;
+i=0;#10;
+i=1;#10;
+i=1;#10;
+i=1;#10;
+i=0;#10;
+i=1;#10;
+i=1;#10;
+i=1;#10;
+i=0;#10;
+i=1;#10;
+i=1;#10;
+i=1;#10;
+i=0;#10;
+i=1;#10;
+i=0;#10;
+i=1;#10;
+i=0;#10;
+i=1;#10;
+i=1;#10;
+$finish;
+end
+
+endmodule

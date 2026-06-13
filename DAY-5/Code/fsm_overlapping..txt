@@ -1,0 +1,13 @@
+module d_flip_flop1(input clk,rst,d,output reg q,qb);
+always @(posedge clk)begin
+if(rst)begin
+q<=0;
+qb<=1;
+end
+else begin
+q<=d;
+qb<=~d;
+end 
+end
+endmodule 
+
