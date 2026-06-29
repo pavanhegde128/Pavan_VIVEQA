@@ -1,0 +1,141 @@
+Here is the complete collection of your Verilog modules and testbenches, organized into a single text format for your reference.
+
+```text
+================================================================================
+PROBLEM 1: VENDING MACHINE (Mealy FSM)
+================================================================================
+
+module vending_machine(clk,rst,coin,D,C);
+input clk,rst;
+input [1:0]coin;
+output reg D,C;
+
+parameter IDLE=3'b000, S1=3'b001, S2=3'b010, S3=3'b011, S4=3'b100;
+reg [2:0]state,next_state;
+
+always@(posedge clk) begin
+    if(rst) state<=IDLE;
+    else state<=next_state;
+end
+
+always@(*) begin
+    D=1'b0; C=1'b0;
+    case(state)
+        IDLE: if (coin==2'b01) begin next_state=S1; D=1'b0; C=1'b0; end
+              else if (coin==2'b10) begin next_state=S2; D=1'b0; C=1'b0; end
+              else next_state=IDLE;
+        S1:   if (coin==2'b01) begin next_state=S2; D=1'b0; C=1'b0; end
+              else if (coin==2'b10) begin next_state=S3; D=1'b0; C=1'b0; end
+              else next_state=S1;
+        S2:   if (coin==2'b01) begin next_state=S3; D=1'b0; C=1'b0; end
+              else if (coin==2'b10) begin next_state=S4; D=1'b0; C=1'b0; end
+              else next_state=S2;
+        S3:   begin next_state=IDLE; D=1'b1; C=1'b0; end
+        S4:   begin next_state=IDLE; D=1'b1; C=1'b1; end
+        default: begin D=1'b0; C=1'b0; next_state=IDLE; end
+    endcase
+end
+endmodule
+
+================================================================================
+PROBLEM 2: MEALY FSM (1001 Sequence Detector)
+================================================================================
+
+module mealey_fsm(clk,rst,ip,op);
+input clk,rst;
+input ip;
+output op;
+
+wire ipb,d1,d0,q0,qb0,q1,qb1;
+assign ipb=~ip;
+
+assign d1=q1 & qb0 & ipb | qb1 & q0 & ipb;
+assign d0=q1 & qb0 | ip;
+assign op= q0 & q1 & ip;
+
+dff dff0(clk,rst,d0,q0,qb0);
+dff dff1(clk,rst,d1,q1,qb1);
+endmodule
+
+================================================================================
+PROBLEM 3: D FLIP-FLOP (DFF)
+================================================================================
+
+module dff(clk,rst,D,Q,Qb);
+input clk,rst,D;
+output reg Q,Qb;
+
+always @(posedge clk) begin
+    if (rst) begin Q <= 1'b0; Qb <= 1'b1; end
+    else begin Q <= D; Qb <= ~D; end
+end
+endmodule
+
+================================================================================
+PROBLEM 4: JK FLIP-FLOP
+================================================================================
+
+module jk_ff(clk,rst,J,K,Q,Qb);
+input clk,rst,J,K;
+output reg Q;
+output Qb;
+
+always @(posedge clk) begin
+    if(rst) Q<=1'b0;
+    else begin
+        case({J,K})
+            2'b00: Q<=Q;
+            2'b01: Q<=1'b0;
+            2'b10: Q<=1'b1;
+            2'b11: Q<=~Q;
+        endcase
+    end
+end
+assign Qb=~Q;
+endmodule
+
+================================================================================
+PROBLEM 5: D FLIP-FLOP USING JK FLIP-FLOP
+================================================================================
+
+module dff_jk(clk,rst,D,Q,Qb);
+input clk,rst,D;
+output Q,Qb;
+wire Db;
+not(Db,D);
+jk_ff jk2d(.clk(clk),.rst(rst),.J(D),.K(Db),.Q(Q),.Qb(Qb));
+endmodule
+
+================================================================================
+PROBLEM 6: ARITHMETIC LOGIC UNIT (ALU)
+================================================================================
+
+module alu(A,B,control,result,zero,negative);
+input signed [3:0]A,B;
+input [3:0]control;
+output reg [3:0]result;
+output zero,negative;
+
+always @(*) begin
+    case(control)
+        4'd0: result=A+B;
+        4'd1: result=A-B;
+        4'd2: result=A&B;
+        4'd3: result=A|B;
+        4'd4: result=A^B;
+        4'd5: result=A>>2;
+        4'd6: result=A<<2;
+        4'd7: result=A*B;
+        4'd8: result=A+1;
+        4'd9: result=A-1;
+        4'd10: result=~A;
+        4'd11: result=~B;
+        default: result=4'd0;
+    endcase
+end
+
+assign zero=~|result;
+assign negative=result[3];
+endmodule
+
+```
