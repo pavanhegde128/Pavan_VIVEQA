@@ -1,0 +1,55 @@
+2. Adjustable Blink Speed via Button
+BTN1 increases blink speed, BTN2 decreases.
+Speeds: 8Hz → 4Hz → 2Hz → 1Hz → 0.5Hz
+Concept: Store speed in a register, select divider value from a lookup.
+
+
+
+rtl solution :
+
+
+
+
+module blink_adjustable(input clk,btn1,btn2,output reg led=0);
+reg btn1_prev=0;
+reg btn2_prev=0;
+reg [2:0] choice=3'd1;
+reg [24:0] count=0;
+reg [24:0] value;
+
+always @(*) begin
+    case(choice)
+        3'd0: value=25'd23999999;
+        3'd1: value=25'd11999999;
+        3'd2: value=25'd5999999;
+        3'd3: value=25'd2999999;
+        3'd4: value=25'd1499999;
+        default: value=25'd23999999;
+    endcase
+end
+
+always @(posedge clk) begin
+
+    if(btn1 && !btn1_prev) begin
+        if(choice<3'd4)
+            choice<=choice+1;
+    end
+
+    if(btn2 && !btn2_prev) begin
+        if(choice>3'd0)
+            choice<=choice-1;
+    end
+
+    btn1_prev<=btn1;
+    btn2_prev<=btn2;
+
+    if(count==value) begin
+        count<=25'd0;
+        led<=~led;
+    end
+    else
+        count<=count+1;
+
+end
+
+endmodule

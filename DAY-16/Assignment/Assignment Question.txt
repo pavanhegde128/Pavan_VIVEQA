@@ -1,0 +1,16 @@
+1. Multi-frequency LED Blinker
+Different LEDs blink at different frequencies simultaneously.
+L1 → 1Hz
+L2 → 2Hz
+L3 → 4Hz
+L4 → 8Hz
+Concept: Single counter, compare at different thresholds for each LED.
+
+2. Adjustable Blink Speed via Button
+BTN1 increases blink speed, BTN2 decreases.
+Speeds: 8Hz → 4Hz → 2Hz → 1Hz → 0.5Hz
+Concept: Store speed in a register, select divider value from a lookup.
+
+
+3. Left / Right Shifter
+Shift one 1 bit towards left or right via the LEDs based on Push Button Input

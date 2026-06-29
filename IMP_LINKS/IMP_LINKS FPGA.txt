@@ -1,0 +1,33 @@
+================================================================================
+PROJECT RESOURCES: ARTY A7-100T & MPU-6050
+================================================================================
+
+Target Device: xc7a100tcsg324-1
+
+[1] Arty A7-100T Reference Manual
+    https://digilent.com/reference/programmable-logic/arty-a7/reference-manual
+    - Official documentation for board architecture, pinout, and peripherals.
+
+[2] Arty A7-100T Master XDC Constraints
+    https://github.com/Digilent/Arty-A7-100-XADC/blob/master/src/constraints/Arty_Master.xdc
+    - Master pin mapping file for Vivado implementation.
+
+[3] AMD/Xilinx DSP48E1 Slice User Guide (UG479)
+    https://docs.amd.com/v/u/en-US/ug479_7Series_DSP48E1
+    - Technical reference for dedicated DSP hardware math operations.
+
+[4] AMD/Xilinx RAMB36E1 Library Guide (UG953)
+    https://docs.amd.com/r/en-US/ug953-vivado-7series-libraries/RAMB36E1
+    - Documentation for Block RAM primitives (36Kb memory blocks).
+
+[5] MPU-6050 Datasheet
+    https://www.cdiweb.com/datasheets/invensense/mpu-6050_datasheet_v3%204.pdf
+    - Physical and electrical specifications for the accelerometer/gyroscope.
+
+[6] MPU-6000/6050 Register Map
+    https://cdn.sparkfun.com/datasheets/Sensors/Accelerometers/RM-MPU-6000A.pdf
+    - Detailed register-level documentation for I2C communication.
+
+[7] PuTTY Terminal Emulator
+    https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html
+    - Tool for serial (UART) communication and debugging.
