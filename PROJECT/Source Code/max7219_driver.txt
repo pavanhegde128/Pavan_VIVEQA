@@ -1,0 +1,72 @@
+`timescale 1ns / 1ps
+// ============================================================
+// MODULE - MAX7219 SPI driver
+// Unchanged from your original design.
+// ============================================================
+module max7219_driver (
+    input  wire       clk_24mhz,
+
+    input  wire [3:0] d0,   // leftmost  digit (thousands)
+    input  wire [3:0] d1,
+    input  wire [3:0] d2,
+    input  wire [3:0] d3,   // rightmost digit (units)
+
+    output reg        seg_cs  = 1'b1,
+    output reg        seg_clk = 1'b0,
+    output reg        seg_din = 1'b0
+);
+
+    // 1 MHz SPI tick (24 MHz / 24)
+    reg [4:0] seg_tick_div = 0;
+    wire      seg_tick     = (seg_tick_div == 23);
+
+    always @(posedge clk_24mhz) begin
+        if (seg_tick) seg_tick_div <= 0;
+        else          seg_tick_div <= seg_tick_div + 1;
+    end
+
+    reg [5:0]  seg_state = 0;
+    reg [15:0] seg_shift = 0;
+    reg [2:0]  curr_dig  = 0;
+
+    always @(posedge clk_24mhz) begin
+        if (seg_tick) begin
+
+            if (seg_state == 0) begin
+                seg_cs  <= 0;
+                seg_clk <= 0;
+                case (curr_dig)
+                    3'd0: seg_shift <= 16'h0C01;
+                    3'd1: seg_shift <= 16'h09FF;
+                    3'd2: seg_shift <= 16'h0A08;
+                    3'd3: seg_shift <= 16'h0B03;
+                    3'd4: seg_shift <= {8'h04, 4'h0, d3};
+                    3'd5: seg_shift <= {8'h03, 4'h0, d2};
+                    3'd6: seg_shift <= {8'h02, 4'h0, d1};
+                    3'd7: seg_shift <= {8'h01, 4'h0, d0};
+                endcase
+                seg_state <= 1;
+            end
+
+            else if (seg_state <= 32) begin
+                if (seg_state[0]) begin
+                    seg_din <= seg_shift[15];
+                    seg_clk <= 0;
+                end else begin
+                    seg_clk   <= 1;
+                    seg_shift <= {seg_shift[14:0], 1'b0};
+                end
+                seg_state <= seg_state + 1;
+            end
+
+            else begin
+                seg_cs   <= 1;
+                seg_clk  <= 0;
+                curr_dig <= (curr_dig < 7) ? curr_dig + 1 : 3'd4;
+                seg_state <= 0;
+            end
+
+        end
+    end
+
+endmodule

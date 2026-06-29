@@ -1,0 +1,69 @@
+`timescale 1ns / 1ps
+// ============================================================
+// remote_cmd_decoder.v   (v2 - all switches + reset from Blynk)
+//
+// Decodes single-byte commands received over UART from the ESP32.
+//
+//   '1'  -> pulse remote_start   for 1 clk cycle   (sw0_start)
+//   '0'  -> pulse remote_stop    for 1 clk cycle   (sw1_stop)
+//   'F'  -> TOGGLE remote_fault  latch             (sw2_fault)
+//   'A'  -> TOGGLE remote_mode0  latch             (sw3_mode0)
+//   'B'  -> TOGGLE remote_mode1  latch             (sw4_mode1)
+//   'C'  -> TOGGLE remote_mode2  latch             (sw5_mode2)
+//   'R'  -> pulse remote_reset   for 1 clk cycle   (push button 0)
+//   anything else -> ignored
+//
+// sw2_fault/sw3..5_mode are physical SLIDE switches (level signals),
+// so their remote equivalents are toggle latches (one byte flips the
+// latch on/off) rather than one-shot pulses - this lets a Blynk
+// "Switch" widget behave just like the physical slide switch.
+// start/stop/reset are momentary, so they stay as 1-cycle pulses.
+// ============================================================
+module remote_cmd_decoder (
+    input  wire       clk,
+    input  wire       rst,
+
+    input  wire [7:0] rx_data,
+    input  wire       rx_valid,
+
+    output reg        remote_start,   // 1-cycle pulse
+    output reg        remote_stop,    // 1-cycle pulse
+    output reg        remote_fault,   // level latch (toggles on 'F')
+    output reg        remote_mode0,   // level latch (toggles on 'A')
+    output reg        remote_mode1,   // level latch (toggles on 'B')
+    output reg        remote_mode2,   // level latch (toggles on 'C')
+    output reg        remote_reset    // 1-cycle pulse
+);
+
+    always @(posedge clk or posedge rst) begin
+        if (rst) begin
+            remote_start <= 1'b0;
+            remote_stop  <= 1'b0;
+            remote_fault <= 1'b0;
+            remote_mode0 <= 1'b0;
+            remote_mode1 <= 1'b0;
+            remote_mode2 <= 1'b0;
+            remote_reset <= 1'b0;
+        end
+        else begin
+            // default: pulses only last 1 cycle. Latches hold their value.
+            remote_start <= 1'b0;
+            remote_stop  <= 1'b0;
+            remote_reset <= 1'b0;
+
+            if (rx_valid) begin
+                case (rx_data)
+                    "1": remote_start <= 1'b1;
+                    "0": remote_stop  <= 1'b1;
+                    "F": remote_fault <= ~remote_fault;
+                    "A": remote_mode0 <= ~remote_mode0;
+                    "B": remote_mode1 <= ~remote_mode1;
+                    "C": remote_mode2 <= ~remote_mode2;
+                    "R": remote_reset <= 1'b1;
+                    default: ; // ignore unknown bytes
+                endcase
+            end
+        end
+    end
+
+endmodule

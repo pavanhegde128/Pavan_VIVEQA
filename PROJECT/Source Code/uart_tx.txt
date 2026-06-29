@@ -1,0 +1,68 @@
+`timescale 1ns / 1ps
+// ============================================================
+// uart_tx.v
+// Simple 8N1 UART transmitter
+// Clock: 24 MHz, Baud: 9600  -> divisor = 2500
+// ============================================================
+module uart_tx #(
+    parameter CLK_FREQ  = 24_000_000,
+    parameter BAUD_RATE = 9600
+)(
+    input  wire       clk,
+    input  wire        rst,
+
+    input  wire [7:0]  tx_data,
+    input  wire         tx_start,   // pulse 1 cycle to begin sending tx_data
+    output reg          tx_busy,
+    output reg          tx          // serial line, idle = 1
+);
+
+    localparam integer BAUD_DIV = CLK_FREQ / BAUD_RATE;  // 2500 @ 24MHz/9600
+
+    reg [12:0] baud_cnt;
+    reg [3:0]  bit_idx;
+    reg [9:0]  shift_reg;   // {stop, data[7:0], start}
+    reg        sending;
+
+    always @(posedge clk or posedge rst) begin
+        if (rst) begin
+            tx        <= 1'b1;
+            tx_busy   <= 1'b0;
+            sending   <= 1'b0;
+            baud_cnt  <= 13'd0;
+            bit_idx   <= 4'd0;
+            shift_reg <= 10'h3FF;
+        end
+        else begin
+            if (!sending) begin
+                tx <= 1'b1;
+                if (tx_start) begin
+                    shift_reg <= {1'b1, tx_data, 1'b0}; // stop,data,start(0)
+                    sending   <= 1'b1;
+                    tx_busy   <= 1'b1;
+                    baud_cnt  <= 13'd0;
+                    bit_idx   <= 4'd0;
+                end
+                else begin
+                    tx_busy <= 1'b0;
+                end
+            end
+            else begin
+                tx <= shift_reg[0];
+                if (baud_cnt == BAUD_DIV - 1) begin
+                    baud_cnt  <= 13'd0;
+                    shift_reg <= {1'b1, shift_reg[9:1]};
+                    bit_idx   <= bit_idx + 1'd1;
+                    if (bit_idx == 4'd9) begin
+                        sending <= 1'b0;
+                        tx_busy <= 1'b0;
+                    end
+                end
+                else begin
+                    baud_cnt <= baud_cnt + 1'd1;
+                end
+            end
+        end
+    end
+
+endmodule

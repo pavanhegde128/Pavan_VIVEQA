@@ -1,0 +1,32 @@
+`timescale 1ns / 1ps
+// ============================================================
+// MODULE - Binary to 4-digit BCD (double-dabble, combinational)
+// Unchanged from your original design.
+// ============================================================
+module bin_to_bcd (
+    input  wire [15:0] bin,
+    output wire [ 3:0] d3,
+    output wire [ 3:0] d2,
+    output wire [ 3:0] d1,
+    output wire [ 3:0] d0
+);
+    integer i;
+    reg [31:0] shift;
+
+    always @(*) begin
+        shift = {16'd0, bin};
+        for (i = 0; i < 16; i = i + 1) begin
+            if (shift[19:16] >= 4'd5) shift[19:16] = shift[19:16] + 4'd3;
+            if (shift[23:20] >= 4'd5) shift[23:20] = shift[23:20] + 4'd3;
+            if (shift[27:24] >= 4'd5) shift[27:24] = shift[27:24] + 4'd3;
+            if (shift[31:28] >= 4'd5) shift[31:28] = shift[31:28] + 4'd3;
+            shift = shift << 1;
+        end
+    end
+
+    assign d0 = shift[19:16];
+    assign d1 = shift[23:20];
+    assign d2 = shift[27:24];
+    assign d3 = shift[31:28];
+
+endmodule

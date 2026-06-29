@@ -1,0 +1,258 @@
+/* ============================================================
+ * esp32_blynk_bridge.ino
+ * Board   : ESP32-C3-MINI-1 (on-board co-processor, AT-STLN-ARTIX 7-001)
+ * Purpose : Bridge the FPGA's UART status link to Blynk IoT, and
+ *           forward Blynk button presses back to the FPGA as
+ *           single-byte start/stop commands.
+ *
+ * Wiring (per manual + new PMOD link):
+ *   FPGA PMOD IO_0 (T2)  -> ESP32 GPIO20 (U0RXD)   [FPGA TX -> ESP RX]
+ *   FPGA PMOD IO_1 (R3)  <- ESP32 GPIO21 (U0TXD)   [FPGA RX <- ESP TX]
+ *   Both 3.3V logic - direct jumper wires, no level shifting.
+ *
+ * NOTE: On the ESP32-C3-MINI-1, programming/USB-CDC goes over the
+ * native USB-Serial-JTAG peripheral on GPIO18/19, NOT through GPIO20/21.
+ * GPIO20/21 (UART0) are free for general use and won't conflict with
+ * flashing via the on-board USB-C port (J9). If you ever swap to a
+ * different ESP32-C3 module/board, just double check its datasheet
+ * before reusing GPIO20/21.
+ *
+ * Library required: Blynk (search "Blynk" in Arduino Library Manager,
+ * install the official blynkkk/blynk-library package, v1.3.2+).
+ * ============================================================ */
+
+#define BLYNK_TEMPLATE_ID  "TMPL3H8GMjkam"     // from Blynk.Cloud console
+#define BLYNK_TEMPLATE_NAME "industrail machine runtime"
+#define BLYNK_AUTH_TOKEN    "hAesZ7YCZW4ebU78nNTJe6qOlQ2uK8Sa"      // from Blynk.Cloud device
+
+#include <WiFi.h>
+#include <BlynkSimpleEsp32.h>
+
+// ---- Wi-Fi credentials ----
+char ssid[] = "Bot_123";
+char pass[] = "12345678";
+
+// ---- UART link to FPGA ----
+// GPIO20/21 = ESP32-C3-MINI-1's UART0 pins. Confirmed free for general
+// use - programming/USB-CDC uses GPIO18/19 (USB-Serial-JTAG), not these.
+#define FPGA_RX_PIN 20   // ESP32 RX  <- FPGA TX (PMOD IO_0 / T2)
+#define FPGA_TX_PIN 21   // ESP32 TX  -> FPGA RX (PMOD IO_1 / R3)
+
+HardwareSerial FpgaSerial(1);   // use UART1 peripheral, mapped to custom pins
+
+// ---- Virtual pins (create matching datastreams in Blynk console) ----
+// ---- Status / label pins (FPGA -> Blynk, all in milliseconds where noted) ----
+#define VPIN_STATE        V0   // 0=IDLE 1=RUNNING 2=FAULT 3=STOPPED (label/value)
+#define VPIN_RUNTIME      V1   // total runtime, ms
+#define VPIN_START_COUNT  V2   // start_count label
+#define VPIN_STOP_COUNT   V3   // stop_count label
+#define VPIN_FAULT_COUNT  V4   // fault_count label
+#define VPIN_MAX_RUNTIME  V5   // max_runtime label, ms
+#define VPIN_SEVEN_SEG    V9   // mirrors EXACTLY what the 7-seg display shows, ms
+
+// ---- Control pins (Blynk -> FPGA) ----
+#define VPIN_START_BTN    V6   // momentary button -> sends '1' (sw0_start)
+#define VPIN_STOP_BTN     V7   // momentary button -> sends '0' (sw1_stop)
+#define VPIN_FAULT_SW     V10  // switch widget    -> sends 'F' (sw2_fault, toggles)
+#define VPIN_MODE0_SW     V11  // switch widget    -> sends 'A' (sw3_mode0, toggles)
+#define VPIN_MODE1_SW     V12  // switch widget    -> sends 'B' (sw4_mode1, toggles)
+#define VPIN_MODE2_SW     V13  // switch widget    -> sends 'C' (sw5_mode2, toggles)
+#define VPIN_RESET_BTN    V14  // momentary button -> sends 'R' (push button 0 / reset)
+
+// ---- Mirror / feedback pins (FPGA -> Blynk) ----
+#define VPIN_RELAY_LED    V8   // LED widget mirrors the FPGA's REAL relay_in pin
+
+// ---- line buffer for incoming FPGA status packets ----
+String lineBuf = "";
+
+BlynkTimer timer;
+
+void parseStatusLine(const String &line) {
+  // FPGA packet format (see status_packet_tx.v):
+  //   S,<state>,<mode>,<runtime>,<start>,<stop>,<fault>,<maxrt>,<disp>,<relay>\n
+  // 9 comma-separated fields after "S,".
+  //
+  // <mode> (0-5) tells us whether <disp> is a time value (modes 0 and 5
+  // = runtime/max_runtime, counted in seconds on the FPGA) or a plain
+  // count/state (modes 1-4) - so we only multiply by 1000 when it's
+  // actually meaningful as a time, and ALL labels mirror the 7-seg's
+  // current value in milliseconds, exactly like the physical display,
+  // whenever that display is showing a time.
+  if (line.length() < 3 || line.charAt(0) != 'S') {
+    if (line.length() > 0) {
+      Serial.print("[RX-IGNORED] ");
+      Serial.println(line);
+    }
+    return;
+  }
+
+  Serial.print("[RX] ");
+  Serial.println(line);
+
+  const int NUM_FIELDS = 9;
+  long fields[NUM_FIELDS];
+  int start = 2; // skip "S,"
+
+  for (int i = 0; i < NUM_FIELDS; i++) {
+    int comma = line.indexOf(',', start);
+    String tok;
+    if (i < NUM_FIELDS - 1) {
+      if (comma == -1) return; // malformed packet, bail out safely
+      tok = line.substring(start, comma);
+      start = comma + 1;
+    } else {
+      tok = line.substring(start); // last field, no trailing comma
+    }
+    fields[i] = tok.toInt();
+  }
+
+  int  state      = fields[0];
+  int  mode       = fields[1];        // 0=runtime 1=start 2=stop 3=fault 4=state 5=maxrt
+  long runtime_sec = fields[2];       // counted in whole seconds on the FPGA
+  long start_cnt    = fields[3];
+  long stop_cnt      = fields[4];
+  long fault_cnt      = fields[5];
+  long maxrt_sec       = fields[6];   // counted in whole seconds on the FPGA
+  int  disp_value       = fields[7];  // exact value shown on the 7-segment
+  int  relay_bit          = fields[8] & 0x1; // FPGA's REAL relay output pin
+
+  // ---- convert the two time-based counters to milliseconds ----
+  long runtime_ms = runtime_sec * 1000L;
+  long maxrt_ms   = maxrt_sec   * 1000L;
+
+  // ---- one labeled datastream per operation ----
+  Blynk.virtualWrite(VPIN_STATE,       state);
+  Blynk.virtualWrite(VPIN_RUNTIME,     runtime_ms);   // ms
+  Blynk.virtualWrite(VPIN_START_COUNT, start_cnt);
+  Blynk.virtualWrite(VPIN_STOP_COUNT,  stop_cnt);
+  Blynk.virtualWrite(VPIN_FAULT_COUNT, fault_cnt);
+  Blynk.virtualWrite(VPIN_MAX_RUNTIME, maxrt_ms);     // ms
+
+  // ---- 7-segment mirror label, always in milliseconds ----
+  // disp_value IS runtime_sec, start_cnt, stop_cnt, fault_cnt, state, or
+  // maxrt_sec depending on mode (it's the same register the FPGA's mux
+  // is currently selecting). Only modes 0 and 5 are seconds-based, so
+  // only those get the x1000 ms conversion; counts/state pass through
+  // as-is since "milliseconds" isn't a meaningful unit for them.
+  long segMs = (mode == 0 || mode == 5) ? (long)disp_value * 1000L
+                                         : (long)disp_value;
+  char segBuf[12];
+  snprintf(segBuf, sizeof(segBuf), "%ld", segMs);
+  Blynk.virtualWrite(VPIN_SEVEN_SEG, segBuf);
+
+  // ---- relay LED mirrors the FPGA's actual relay_in pin, not a guess ----
+  Blynk.virtualWrite(VPIN_RELAY_LED, relay_bit ? 255 : 0);
+
+  // ---- debug printout: parsed fields + what each Blynk label gets ----
+  Serial.print("  state=");      Serial.print(state);
+  Serial.print("  mode=");       Serial.print(mode);
+  Serial.print("  runtime_ms="); Serial.print(runtime_ms);
+  Serial.print("  start=");      Serial.print(start_cnt);
+  Serial.print("  stop=");       Serial.print(stop_cnt);
+  Serial.print("  fault=");      Serial.print(fault_cnt);
+  Serial.print("  maxrt_ms=");   Serial.print(maxrt_ms);
+  Serial.print("  disp_raw=");   Serial.print(disp_value);
+  Serial.print("  seg_ms=");     Serial.print(segMs);
+  Serial.print("  relay=");      Serial.println(relay_bit);
+}
+
+void pollFpgaSerial() {
+  while (FpgaSerial.available()) {
+    char c = FpgaSerial.read();
+    if (c == '\n') {
+      parseStatusLine(lineBuf);
+      lineBuf = "";
+    } else if (c != '\r') {
+      lineBuf += c;
+      // safety: prevent unbounded growth if framing is ever lost
+      if (lineBuf.length() > 80) lineBuf = "";
+    }
+  }
+}
+
+// ---- Blynk app button: START (momentary) ----
+BLYNK_WRITE(VPIN_START_BTN) {
+  int v = param.asInt();
+  if (v == 1) {
+    FpgaSerial.write('1');   // single-byte start command to FPGA
+    Serial.println("[TX] '1' (start)");
+  }
+}
+
+// ---- Blynk app button: STOP (momentary) ----
+BLYNK_WRITE(VPIN_STOP_BTN) {
+  int v = param.asInt();
+  if (v == 1) {
+    FpgaSerial.write('0');   // single-byte stop command to FPGA
+    Serial.println("[TX] '0' (stop)");
+  }
+}
+
+// ---- Blynk app switch: FAULT (sw2_fault) ----
+// remote_cmd_decoder.v TOGGLES its fault latch on every 'F' byte, so
+// send exactly one 'F' per Blynk switch flip (not per state value) -
+// otherwise a re-sync or duplicate event would flip it back off.
+BLYNK_WRITE(VPIN_FAULT_SW) {
+  FpgaSerial.write('F');
+  Serial.println("[TX] 'F' (fault toggle)");
+}
+
+// ---- Blynk app switch: MODE bit 0 (sw3_mode0) ----
+BLYNK_WRITE(VPIN_MODE0_SW) {
+  FpgaSerial.write('A');
+  Serial.println("[TX] 'A' (mode0 toggle)");
+}
+
+// ---- Blynk app switch: MODE bit 1 (sw4_mode1) ----
+BLYNK_WRITE(VPIN_MODE1_SW) {
+  FpgaSerial.write('B');
+  Serial.println("[TX] 'B' (mode1 toggle)");
+}
+
+// ---- Blynk app switch: MODE bit 2 (sw5_mode2) ----
+BLYNK_WRITE(VPIN_MODE2_SW) {
+  FpgaSerial.write('C');
+  Serial.println("[TX] 'C' (mode2 toggle)");
+}
+
+// ---- Blynk app button: RESET (momentary, mirrors push button 0) ----
+BLYNK_WRITE(VPIN_RESET_BTN) {
+  int v = param.asInt();
+  if (v == 1) {
+    FpgaSerial.write('R');   // single-byte reset command to FPGA
+    Serial.println("[TX] 'R' (reset)");
+  }
+}
+
+// Re-sync values once on (re)connect so the app isn't blank on open.
+// NOTE: only the momentary buttons are synced - the fault/mode SWITCH
+// widgets are intentionally NOT synced here, because each 'F'/'A'/'B'/'C'
+// byte TOGGLES a latch on the FPGA. If Blynk re-sent the widget's last
+// known position after every reconnect, it would flip the latch instead
+// of restoring it. Keep the physical switches as the source of truth for
+// fault/mode state if the two ever need to be realigned.
+BLYNK_CONNECTED() {
+  Serial.println(">>> Blynk connected <<<");
+  Blynk.syncVirtual(VPIN_START_BTN, VPIN_STOP_BTN, VPIN_RESET_BTN);
+}
+
+void setup() {
+  Serial.begin(115200);              // USB debug console
+  delay(200);
+  Serial.println();
+  Serial.println("=== ESP32 <-> FPGA Blynk bridge starting ===");
+
+  FpgaSerial.begin(9600, SERIAL_8N1, FPGA_RX_PIN, FPGA_TX_PIN);
+  Serial.println("FPGA UART link up (9600 8N1, GPIO20 RX / GPIO21 TX)");
+
+  Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
+  Serial.println("Blynk.begin() called - connecting to WiFi + Blynk Cloud...");
+
+  // Poll the FPGA link frequently and independently of Blynk.run()
+  timer.setInterval(50L, pollFpgaSerial);
+}
+
+void loop() {
+  Blynk.run();
+  timer.run();
+}

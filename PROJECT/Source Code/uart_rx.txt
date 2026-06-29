@@ -1,0 +1,117 @@
+`timescale 1ns / 1ps
+// ============================================================
+// uart_rx.v
+// Simple 8N1 UART receiver
+// Clock: 24 MHz, Baud: 9600  -> divisor = 2500
+// ============================================================
+module uart_rx #(
+    parameter CLK_FREQ  = 24_000_000,
+    parameter BAUD_RATE = 9600
+)(
+    input  wire       clk,
+    input  wire       rst,
+
+    input  wire       rx,          // serial line in, idle = 1
+
+    output reg  [7:0] rx_data,
+    output reg         rx_valid    // pulses 1 cycle when a byte is ready
+);
+
+    localparam integer BAUD_DIV      = CLK_FREQ / BAUD_RATE;      // 2500
+    localparam integer HALF_BAUD_DIV = BAUD_DIV / 2;
+
+    // ---- input synchronizer (avoid metastability) ----
+    reg rx_sync0, rx_sync1;
+    always @(posedge clk or posedge rst) begin
+        if (rst) begin
+            rx_sync0 <= 1'b1;
+            rx_sync1 <= 1'b1;
+        end else begin
+            rx_sync0 <= rx;
+            rx_sync1 <= rx_sync0;
+        end
+    end
+
+    localparam IDLE  = 2'b00;
+    localparam START = 2'b01;
+    localparam DATA  = 2'b10;
+    localparam STOP  = 2'b11;
+
+    reg [1:0]  rstate;
+    reg [12:0] baud_cnt;
+    reg [3:0]  bit_idx;
+    reg [7:0]  shift_reg;
+
+    always @(posedge clk or posedge rst) begin
+        if (rst) begin
+            rstate    <= IDLE;
+            baud_cnt  <= 13'd0;
+            bit_idx   <= 4'd0;
+            shift_reg <= 8'd0;
+            rx_data   <= 8'd0;
+            rx_valid  <= 1'b0;
+        end
+        else begin
+            rx_valid <= 1'b0; // default: pulse only on completion
+
+            case (rstate)
+
+            IDLE: begin
+                baud_cnt <= 13'd0;
+                if (rx_sync1 == 1'b0) begin   // start bit detected
+                    rstate <= START;
+                end
+            end
+
+            START: begin
+                // sample at mid-bit to confirm true start bit
+                if (baud_cnt == HALF_BAUD_DIV - 1) begin
+                    if (rx_sync1 == 1'b0) begin
+                        baud_cnt <= 13'd0;
+                        bit_idx  <= 4'd0;
+                        rstate   <= DATA;
+                    end
+                    else begin
+                        rstate <= IDLE; // false start, glitch
+                    end
+                end
+                else begin
+                    baud_cnt <= baud_cnt + 1'd1;
+                end
+            end
+
+            DATA: begin
+                if (baud_cnt == BAUD_DIV - 1) begin
+                    baud_cnt  <= 13'd0;
+                    shift_reg <= {rx_sync1, shift_reg[7:1]};
+                    if (bit_idx == 4'd7) begin
+                        rstate <= STOP;
+                    end
+                    else begin
+                        bit_idx <= bit_idx + 1'd1;
+                    end
+                end
+                else begin
+                    baud_cnt <= baud_cnt + 1'd1;
+                end
+            end
+
+            STOP: begin
+                if (baud_cnt == BAUD_DIV - 1) begin
+                    baud_cnt <= 13'd0;
+                    rstate   <= IDLE;
+                    rx_data  <= shift_reg;
+                    rx_valid <= 1'b1;   // byte ready
+                end
+                else begin
+                    baud_cnt <= baud_cnt + 1'd1;
+                end
+            end
+
+            default: rstate <= IDLE;
+
+            endcase
+        end
+    end
+
+endmodule
