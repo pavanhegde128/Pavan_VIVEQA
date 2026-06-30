@@ -1,0 +1,59 @@
+//ALU with VIO and ILA Integration
+// This collection provides an Arithmetic Logic Unit (ALU) design and a top-level module configured for real-time debugging using VIO and ILA IP cores.
+
+
+
+
+
+
+module alu(a,b,alu_ctrl,result,zero);
+input [31:0]a,b;
+input [2:0]alu_ctrl;
+output zero;
+output reg [31:0]result;
+
+always @ (*)begin
+   case (alu_ctrl)
+   3'b000:result=a+b; //Add
+   3'b001:result=a-b; //Sub
+   3'b010:result=a & b; //bitwise and
+   3'b011:result=a | b; //bitwise or
+   default:result=32'bz;
+  endcase
+end
+
+assign zero=~|result;
+
+endmodule
+
+module Top(clk); //Only clock as my Input rest all driven by VIO
+input clk;
+
+wire [31:0]a,b;
+wire [2:0]alu_ctrl;
+wire [31:0]result;
+wire zero;
+
+alu alu(a,b,alu_ctrl,result,zero);
+
+ila_0 ila (
+	.clk(clk),
+	.probe0(result),
+	.probe1(zero)
+);
+
+vio_0 vio_0 (
+  .clk(clk),
+  .probe_in0(result),
+  .probe_in1(zero),
+  .probe_out0(a),
+  .probe_out1(b),
+  .probe_out2(alu_ctrl)
+);
+
+endmodule
+Tcl
+# Clock
+set_property PACKAGE_PIN D13 [get_ports clk]
+set_property IOSTANDARD LVCMOS33 [get_ports clk]
+create_clock -period 41.667 [get_ports clk]
