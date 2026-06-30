@@ -1,0 +1,95 @@
+//Extended 16-Button/LED UART Controller
+
+
+
+
+
+
+module UART #(
+    parameter CLK_FREQ    = 24_000_000,
+    parameter BAUD_RATE   = 9600,
+    parameter PARITY_EN   = 1,
+    parameter PARITY_TYPE = 0
+)(
+    input         clk,
+    input         rst,
+    input         uart_rx_pin,
+    output        uart_tx_pin,
+    output [15:0] led,
+    input  [15:0] btn
+);
+
+    localparam CLKS_PER_BIT = CLK_FREQ / BAUD_RATE;
+    wire [7:0] rx_data;
+    wire       rx_done;
+    wire       rx_parity_err, rx_frame_err;
+
+    uart_rx #(.CLKS_PER_BIT(CLKS_PER_BIT), .PARITY_EN(PARITY_EN), .PARITY_TYPE(PARITY_TYPE)) u_rx (
+        .clk(clk), .rst(rst), .rx(uart_rx_pin), .rx_data(rx_data), .rx_done(rx_done), .parity_err(rx_parity_err), .frame_err(rx_frame_err)
+    );
+
+    wire       tx_busy, tx_done;
+    reg        tx_start;
+    reg  [7:0] tx_byte;
+
+    uart_tx #(.CLKS_PER_BIT(CLKS_PER_BIT), .PARITY_EN(PARITY_EN), .PARITY_TYPE(PARITY_TYPE)) u_tx (
+        .clk(clk), .rst(rst), .tx_start(tx_start), .tx_data(tx_byte), .tx(uart_tx_pin), .tx_busy(tx_busy), .tx_done(tx_done)
+    );
+
+    reg [15:0] btn_sync1, btn_sync2, btn_stable, btn_prev, btn_posedge;
+    always @(posedge clk) begin
+        btn_sync1   <= btn;
+        btn_sync2   <= btn_sync1;
+        btn_stable  <= btn_sync2;
+        btn_prev    <= btn_stable;
+        btn_posedge <= btn_stable & ~btn_prev;
+    end
+
+    reg [15:0] led_reg;
+    always @(posedge clk) begin
+        if (rst) led_reg <= 16'h0;
+        else if (rx_done && !rx_parity_err && !rx_frame_err) begin
+            case (rx_data)
+                8'h31: led_reg <= 16'h0001; 8'h32: led_reg <= 16'h0002;
+                8'h33: led_reg <= 16'h0004; 8'h34: led_reg <= 16'h0008;
+                8'h35: led_reg <= 16'h0010; 8'h36: led_reg <= 16'h0020;
+                8'h37: led_reg <= 16'h0040; 8'h38: led_reg <= 16'h0080;
+                default: led_reg <= led_reg;
+            endcase
+        end
+    end
+    assign led = led_reg;
+
+    localparam MSG_LEN = 8;
+    reg [7:0] msg_rom [0:15][0:MSG_LEN-1];
+    integer b;
+    initial begin
+        for (b = 0; b < 16; b = b + 1) begin
+            msg_rom[b][0]="N"; msg_rom[b][1]="I"; msg_rom[b][2]="R"; msg_rom[b][3]="A";
+            msg_rom[b][4]="N"; msg_rom[b][5]="J"; msg_rom[b][6]="A"; msg_rom[b][7]="N";
+        end
+    end
+
+    reg [2:0] tx_state;
+    reg [3:0] tx_ptr, btn_idx;
+    always @(posedge clk) begin
+        if (rst) begin
+            tx_state <= 0; tx_ptr <= 0; tx_start <= 0;
+        end else begin
+            case (tx_state)
+                0: begin
+                    if (|btn_posedge) begin
+                        for(b=0; b<16; b=b+1) if(btn_posedge[b]) btn_idx <= b;
+                        tx_state <= 1;
+                    end
+                end
+                1: begin tx_byte <= msg_rom[btn_idx][tx_ptr]; tx_start <= 1; tx_state <= 2; end
+                2: begin tx_start <= 0; if (tx_done) tx_state <= 3; end
+                3: begin 
+                    if (tx_ptr == MSG_LEN - 1) begin tx_ptr <= 0; tx_state <= 0; end
+                    else begin tx_ptr <= tx_ptr + 1; tx_state <= 1; end
+                end
+            endcase
+        end
+    end
+endmodule
