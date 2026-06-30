@@ -1,0 +1,42 @@
+//Testbench for RX Module
+
+
+
+
+
+module uart_rx_tb();
+parameter CLKS_PER_BIT = 2500;
+reg clk = 0;
+reg rst = 1;
+reg rx = 1;
+wire [7:0] rx_data;
+wire rx_done;
+wire parity_err;
+wire frame_err;
+
+uart_rx #(.CLKS_PER_BIT(CLKS_PER_BIT)) dut (
+    .clk(clk), .rst(rst), .rx(rx), 
+    .rx_data(rx_data), .rx_done(rx_done), 
+    .parity_err(parity_err), .frame_err(frame_err)
+);
+
+always #5 clk = ~clk;
+
+task send_byte(input [7:0] data);
+    integer i;
+    begin
+        rx <= 0; repeat(CLKS_PER_BIT) @(posedge clk);
+        for(i=0; i<8; i=i+1) begin
+            rx <= data[i]; repeat(CLKS_PER_BIT) @(posedge clk);
+        end
+        rx <= 1; repeat(CLKS_PER_BIT) @(posedge clk);
+    end
+endtask
+
+initial begin
+    #20 rst = 0;
+    #100 send_byte(8'hA5);
+    #1000 send_byte(8'h5A);
+    #1000 $finish;
+end
+endmodule
