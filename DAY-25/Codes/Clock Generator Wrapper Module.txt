@@ -1,0 +1,57 @@
+//Clock Generator Wrapper Module
+
+
+
+
+`timescale 1ns / 1ps
+
+module clk_gen (
+    input  wire clk_in1,
+    input  wire reset,
+    output wire locked,
+    output wire clk_out1,
+    output wire clk_out2,
+    output wire clk_out3,
+    output wire clk_out4
+);
+    
+    clk_wiz_0 clk_generator (
+        .clk_out1(clk_out1),
+        .clk_out2(clk_out2),
+        .clk_out3(clk_out3),
+        .clk_out4(clk_out4),
+        .reset(reset),
+        .locked(locked),
+        .clk_in1(clk_in1)
+    );
+
+endmodule
+
+
+
+//Constraints File (XDC)
+
+
+
+
+set_property PACKAGE_PIN D13 [get_ports clk_in1]
+set_property IOSTANDARD LVCMOS33 [get_ports clk_in1]
+create_clock -period 41.667 -name clk_in1 [get_ports clk_in1]
+
+set_property PACKAGE_PIN A13 [get_ports reset]
+set_property IOSTANDARD LVCMOS33 [get_ports reset]
+
+set_property PACKAGE_PIN D5 [get_ports locked]
+set_property IOSTANDARD LVCMOS33 [get_ports locked]
+
+set_property PACKAGE_PIN T2 [get_ports clk_out1]
+set_property IOSTANDARD LVCMOS33 [get_ports clk_out1]
+
+set_property PACKAGE_PIN T3 [get_ports clk_out2]
+set_property IOSTANDARD LVCMOS33 [get_ports clk_out2]
+
+set_property PACKAGE_PIN M1 [get_ports clk_out3]
+set_property IOSTANDARD LVCMOS33 [get_ports clk_out3]
+
+set_property PACKAGE_PIN P1 [get_ports clk_out4]
+set_property IOSTANDARD LVCMOS33 [get_ports clk_out4]
